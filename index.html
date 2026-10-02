@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>校园活动智能体</title>
+<style>
+  :root{
+    --深青:#0F5C5C; --浅青:#EAF2F2; --边框:#E3E7E8;
+    --灰:#6B7475; --深灰:#2C3334; --底:#F7F9F9;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--底); color:var(--深灰);
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:15px; line-height:1.7;
+  }
+  header{
+    background:#fff; border-bottom:1px solid var(--边框);
+    padding:22px 32px 18px; position:sticky; top:0; z-index:10;
+  }
+  h1{margin:0 0 4px; font-size:21px; color:var(--深青); letter-spacing:.5px;}
+  .副标题{color:var(--灰); font-size:13px;}
+  .概况{display:flex; gap:26px; margin-top:14px; flex-wrap:wrap;}
+  .概况 div{font-size:13px; color:var(--灰);}
+  .概况 b{display:block; font-size:19px; color:var(--深青); font-weight:600;}
+  main{max-width:1080px; margin:0 auto; padding:22px 32px 60px;}
+  .筛选{
+    background:#fff; border:1px solid var(--边框); border-radius:10px;
+    padding:14px 16px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+    margin-bottom:20px;
+  }
+  .筛选 input[type=text],.筛选 select,.筛选 input[type=date]{
+    border:1px solid var(--边框); border-radius:7px; padding:7px 10px;
+    font-size:14px; font-family:inherit; color:var(--深灰); background:#fff;
+  }
+  .筛选 input[type=text]{flex:1; min-width:200px;}
+  .筛选 label{font-size:13px; color:var(--灰); display:flex; align-items:center; gap:5px;}
+  .结果数{color:var(--灰); font-size:13px; margin-bottom:12px;}
+  .卡片{
+    background:#fff; border:1px solid var(--边框); border-radius:10px;
+    padding:15px 18px; margin-bottom:11px; cursor:pointer;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .卡片:hover{border-color:#B8CFCF; box-shadow:0 2px 10px rgba(15,92,92,.06);}
+  .卡片 h3{margin:0 0 7px; font-size:16px; font-weight:600; line-height:1.5;}
+  .元信息{display:flex; gap:14px; flex-wrap:wrap; font-size:13px; color:var(--灰);}
+  .标签{
+    display:inline-block; background:var(--浅青); color:var(--深青);
+    border-radius:5px; padding:1px 8px; font-size:12px; font-weight:500;
+  }
+  .标签.活动{background:#FDF1E3; color:#9A5B12;}
+  .空状态{text-align:center; color:#9AA3A4; padding:60px 0; font-size:14px;}
+  .更多{
+    display:block; width:100%; margin-top:16px; padding:11px;
+    background:#fff; border:1px solid var(--边框); border-radius:9px;
+    color:var(--深青); font-size:14px; font-family:inherit; cursor:pointer;
+  }
+  .更多:hover{background:var(--浅青);}
+
+  /* 详情浮层 */
+  .遮罩{
+    display:none; position:fixed; inset:0; background:rgba(30,40,40,.45);
+    z-index:50; padding:40px 20px; overflow:auto;
+  }
+  .遮罩.开{display:block;}
+  .详情{
+    background:#fff; border-radius:12px; max-width:780px; margin:0 auto;
+    padding:26px 30px 30px; position:relative;
+  }
+  .关闭{
+    position:absolute; right:16px; top:14px; border:none; background:none;
+    font-size:22px; color:#AAB2B3; cursor:pointer; line-height:1;
+  }
+  .关闭:hover{color:var(--深灰);}
+  .详情 h2{margin:0 0 10px; font-size:19px; color:var(--深青); line-height:1.5; padding-right:26px;}
+  .详情 .字段{font-size:14px; margin-bottom:5px;}
+  .详情 .字段 span{color:var(--灰); display:inline-block; min-width:72px;}
+  .详情 hr{border:none; border-top:1px solid var(--边框); margin:16px 0;}
+  .正文{
+    white-space:pre-wrap; font-size:14px; line-height:1.85;
+    max-height:44vh; overflow:auto; color:#3B4445;
+    background:var(--底); border-radius:8px; padding:14px 16px;
+  }
+  .原文链接{display:inline-block; margin-top:14px; color:var(--深青); font-size:13px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>校园活动智能体</h1>
+  <div class="副标题">把学校公开的通知和活动收进一个地方 · 数据来自教务处、学生处、学校主站、校团委的公开页面</div>
+  <div class="概况" id="概况"></div>
+</header>
+
+<main>
+  <div class="筛选">
+    <input type="text" id="关键词" placeholder="搜标题或正文，比如「讲座」「挑战杯」">
+    <select id="类型"><option value="">全部类型</option></select>
+    <select id="来源"><option value="">全部来源</option></select>
+    <input type="date" id="起始日期" title="按发布日期筛">
+    <input type="date" id="结束日期" title="按发布日期筛">
+    <label><input type="checkbox" id="只看活动"> 只看有活动时间的</label>
+  </div>
+
+  <div class="结果数" id="结果数"></div>
+  <div id="列表"></div>
+  <button class="更多" id="更多" style="display:none">加载更多</button>
+</main>
+
+<div class="遮罩" id="遮罩">
+  <div class="详情">
+    <button class="关闭" id="关闭">×</button>
+    <h2 id="详情标题"></h2>
+    <div id="详情字段"></div>
+    <div id="详情正文区"></div>
+  </div>
+</div>
+
+<script>
+/*
+  同一个页面支持两种跑法：
+    在线模式：本地后端在跑（后端/应用.py），走 /api/... 接口，数据实时。
+    静态模式：放到静态托管上（没有后端），读同目录的 数据.json，筛选在浏览器里做。
+  打开时自动探测，不用切换。
+*/
+const 状态 = {页码:1, 每页:50, 总数:0, 已加载:0, 模式:"未知", 全量:null};
+
+async function 取JSON(地址){
+  const 响应 = await fetch(地址);
+  if(!响应.ok) throw new Error(响应.statusText);
+  return await 响应.json();
+}
+
+// ---------------------------------------------------------------- 数据源
+const 在线源 = {
+  统计: () => 取JSON("/api/统计"),
+  选项: () => 取JSON("/api/筛选选项"),
+  查询: (参) => 取JSON("/api/活动?" + 参.toString()),
+  详情: (链接) => 取JSON("/api/活动/详情?url=" + encodeURIComponent(链接)),
+};
+
+const 静态源 = {
+  统计(){
+    const 全部 = 状态.全量;
+    return {
+      总条数: 全部.length,
+      有正文: 全部.filter(x=>x.content_raw).length,
+      有活动时间: 全部.filter(x=>x.start_time).length,
+      最新发布日期: 全部.map(x=>x.publish_date).filter(Boolean).sort().pop() || "-",
+      来源数: new Set(全部.map(x=>x.source_name)).size,
+    };
+  },
+  选项(){
+    return {
+      类型: [...new Set(状态.全量.map(x=>x.category).filter(Boolean))].sort(),
+      来源: [...new Set(状态.全量.map(x=>x.source_name).filter(Boolean))].sort(),
+    };
+  },
+  查询(参){
+    const 关键词 = (参.get("q") || "").toLowerCase();
+    const 类型 = 参.get("类型") || "", 来源 = 参.get("来源") || "";
+    const 起 = 参.get("起始日期") || "", 止 = 参.get("结束日期") || "";
+    const 只要活动 = 参.get("只看有活动时间") === "true";
+    const 每页 = +参.get("每页") || 50, 页码 = +参.get("页码") || 1;
+    let 命中 = 状态.全量.filter(x => {
+      if(类型 && x.category !== 类型) return false;
+      if(来源 && x.source_name !== 来源) return false;
+      if(起 && (x.publish_date || "") < 起) return false;
+      if(止 && (x.publish_date || "") > 止) return false;
+      if(只要活动 && !x.start_time) return false;
+      if(关键词 && !((x.title||"") + (x.content_raw||"")).toLowerCase().includes(关键词)) return false;
+      return true;
+    });
+    命中.sort((a,b) => (b.publish_date || "").localeCompare(a.publish_date || ""));
+    const 起下标 = (页码 - 1) * 每页;
+    return {
+      总数: 命中.length, 页码, 每页,
+      条目: 命中.slice(起下标, 起下标 + 每页).map(x => {
+        const 条 = {...x}; delete 条.content_raw; return 条;
+      }),
+    };
+  },
+  详情(链接){
+    const 条 = 状态.全量.find(x => x.source_url === 链接);
+    if(!条) throw new Error("没有这条记录");
+    return 条;
+  },
+};
+
+let 源 = 在线源;
+
+async function 选数据源(){
+  try{
+    await 取JSON("/api/健康");
+    状态.模式 = "在线"; 源 = 在线源;
+  }catch(错误){
+    const 数据 = await 取JSON("数据.json");
+    状态.全量 = 数据.条目;
+    状态.模式 = "静态"; 源 = 静态源;
+  }
+}
+
+function 转义(文字){
+  return (文字 ?? "").toString()
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+async function 载概况(){
+  const 数 = await 源.统计();
+  document.getElementById("概况").innerHTML = `
+    <div><b>${数.总条数}</b>条通知</div>
+    <div><b>${数.有正文}</b>条抓到正文</div>
+    <div><b>${数.有活动时间}</b>条有活动时间</div>
+    <div><b>${数.来源数}</b>个来源站点</div>
+    <div><b>${数.最新发布日期 || "-"}</b>数据最新到</div>
+    <div><b>${状态.模式}</b>数据模式</div>`;
+}
+
+async function 载选项(){
+  const 选 = await 源.选项();
+  const 类型框 = document.getElementById("类型");
+  for(const 项 of 选.类型){
+    类型框.insertAdjacentHTML("beforeend", `<option value="${转义(项)}">${转义(项)}</option>`);
+  }
+  const 来源框 = document.getElementById("来源");
+  for(const 项 of 选.来源){
+    来源框.insertAdjacentHTML("beforeend", `<option value="${转义(项)}">${转义(项)}</option>`);
+  }
+}
+
+function 组装查询(页码){
+  const 参 = new URLSearchParams();
+  const 加 = (名, 值) => { if(值) 参.set(名, 值); };
+  加("q", document.getElementById("关键词").value.trim());
+  加("类型", document.getElementById("类型").value);
+  加("来源", document.getElementById("来源").value);
+  加("起始日期", document.getElementById("起始日期").value);
+  加("结束日期", document.getElementById("结束日期").value);
+  if(document.getElementById("只看活动").checked) 参.set("只看有活动时间", "true");
+  参.set("每页", 状态.每页);
+  参.set("页码", 页码);
+  return 参;
+}
+
+function 卡片HTML(条){
+  const 有活动 = 条.start_time ? `<span class="标签 活动">${转义(条.start_time)}</span>` : "";
+  const 地点 = 条.location ? `<span>📍 ${转义(条.location)}</span>` : "";
+  return `
+    <div class="卡片" data-url="${转义(条.source_url)}">
+      <h3>${转义(条.title)}</h3>
+      <div class="元信息">
+        <span class="标签">${转义(条.category || "未分类")}</span>
+        ${有活动}
+        <span>${转义(条.publish_date || "")}</span>
+        ${地点}
+        <span>${转义(条.source_name)} · ${转义(条.source_column)}</span>
+      </div>
+    </div>`;
+}
+
+async function 载列表(重来){
+  if(重来){ 状态.页码 = 1; 状态.已加载 = 0; document.getElementById("列表").innerHTML = ""; }
+  const 数据 = await 源.查询(组装查询(状态.页码));
+  状态.总数 = 数据.总数;
+  document.getElementById("结果数").textContent =
+    数据.总数 === 0 ? "" : `共 ${数据.总数} 条，已显示 ${状态.已加载 + 数据.条目.length} 条`;
+  const 列表 = document.getElementById("列表");
+  if(数据.总数 === 0){
+    列表.innerHTML = `<div class="空状态">没有符合条件的记录，换个筛选条件试试</div>`;
+    document.getElementById("更多").style.display = "none";
+    return;
+  }
+  列表.insertAdjacentHTML("beforeend", 数据.条目.map(卡片HTML).join(""));
+  状态.已加载 += 数据.条目.length;
+  document.getElementById("更多").style.display = 状态.已加载 < 数据.总数 ? "block" : "none";
+}
+
+async function 看详情(链接){
+  const 条 = await 源.详情(链接);
+  document.getElementById("详情标题").textContent = 条.title;
+  const 字段 = [
+    ["发布日期", 条.publish_date],
+    ["活动时间", 条.start_time ? 条.start_time + (条.end_time ? " — " + 条.end_time : "") : ""],
+    ["时间原文", 条.time_raw],
+    ["地点", 条.location],
+    ["主办方", 条.organizer],
+    ["类型", 条.category],
+    ["报名截止", 条.signup_deadline],
+    ["第二课堂", 条.second_classroom],
+    ["来源", 条.source_name + " · " + 条.source_column],
+    ["抽取置信度", 条.confidence],
+  ].filter(([, 值]) => 值);
+  document.getElementById("详情字段").innerHTML =
+    字段.map(([名, 值]) => `<div class="字段"><span>${名}</span>${转义(值)}</div>`).join("");
+  document.getElementById("详情正文区").innerHTML = 条.content_raw
+    ? `<hr><div class="正文">${转义(条.content_raw)}</div>`
+    : `<hr><div class="正文">这条没有抓到正文文字（可能是 PDF 附件或图片海报）。</div>`;
+  document.getElementById("详情正文区").insertAdjacentHTML("beforeend",
+    `<a class="原文链接" href="${转义(条.source_url)}" target="_blank" rel="noopener">查看原文 →</a>`);
+  document.getElementById("遮罩").classList.add("开");
+}
+
+document.getElementById("列表").addEventListener("click", 事件 => {
+  const 卡片 = 事件.target.closest(".卡片");
+  if(卡片) 看详情(卡片.dataset.url);
+});
+document.getElementById("关闭").onclick = () =>
+  document.getElementById("遮罩").classList.remove("开");
+document.getElementById("遮罩").onclick = 事件 => {
+  if(事件.target.id === "遮罩") 事件.target.classList.remove("开");
+};
+document.getElementById("更多").onclick = async () => { 状态.页码 += 1; await 载列表(false); };
+
+let 抖动;
+for(const 标识 of ["关键词","类型","来源","起始日期","结束日期","只看活动"]){
+  document.getElementById(标识).addEventListener("input", () => {
+    clearTimeout(抖动); 抖动 = setTimeout(() => 载列表(true), 250);
+  });
+}
+
+(async () => {
+  await 选数据源();
+  await 载概况();
+  await 载选项();
+  await 载列表(true);
+})();
+</script>
+</body>
+</html>
