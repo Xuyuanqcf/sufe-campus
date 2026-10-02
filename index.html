@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>校园活动智能体</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230F5C5C'/%3E%3Ctext x='16' y='23' font-size='19' text-anchor='middle' fill='white' font-family='sans-serif'%3E财%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --深青:#0F5C5C; --浅青:#EAF2F2; --边框:#E3E7E8;
@@ -118,6 +119,7 @@
 </div>
 
 <script>
+const 强制静态 = true;
 /*
   同一个页面支持两种跑法：
     在线模式：本地后端在跑（后端/应用.py），走 /api/... 接口，数据实时。
@@ -191,6 +193,13 @@ const 静态源 = {
 let 源 = 在线源;
 
 async function 选数据源(){
+  // 导出的静态站会给页面注入 强制静态 标记，有标记就直接读本地 JSON，不做无用请求
+  if(typeof 强制静态 !== "undefined" && 强制静态){
+    const 数据 = await 取JSON("数据.json");
+    状态.全量 = 数据.条目;
+    状态.模式 = "静态"; 源 = 静态源;
+    return;
+  }
   try{
     await 取JSON("/api/健康");
     状态.模式 = "在线"; 源 = 在线源;
